@@ -28,4 +28,12 @@
 *.out
 *.app
 
+# Qt Creator
 *.pro.user
+
+# Emacs et al
+*~
+*#*
+
+# Dolphin
+.directory
