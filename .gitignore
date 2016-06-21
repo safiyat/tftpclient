@@ -30,6 +30,7 @@
 
 # Qt Creator
 *.pro.user
+*build/
 
 # Emacs et al
 *~
