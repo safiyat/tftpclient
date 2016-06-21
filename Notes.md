@@ -85,7 +85,7 @@ The TFTP header consists of a 2 byte opcode field which indicates the packet’s
 | Opcode | Filename |    0    |  Mode  |    0    |
  ------------------------------------------------
 
-                * RRQ/WRQ Packets *
+		* RRQ/WRQ Packets *
 Opcode = 1, 2
 Mode = netascii, octet, mail
 ```
@@ -96,7 +96,7 @@ Mode = netascii, octet, mail
 | Opcode |    Block #    |         Data         |
  ------------------------------------------------
 
-                  * DATA Packet *
+		  * DATA Packet *
 Opcode = 3
 1 <= Block #
 0 <= n <= 512
@@ -115,7 +115,7 @@ All packets other than duplicate ACK's and those used for termination are acknow
  ------------------------
 
       * ACK Packet *
-      
+
 Opcode = 4
 1 <= Block #
     Block # == 0 when WRQ is acknowledged.
@@ -139,11 +139,11 @@ If a request can not be granted, or some error occurs during the transfer, then 
  ------------------------------------------------
 | Opcode |   ErrorCode   |    ErrMsg    |    0   |
  ------------------------------------------------
- 
-                  * ERROR Packet * 
+
+		  * ERROR Packet *
 Opcode = 4
 1 <= Block #
-    Block # == 0 when WRQ is acknowledged. 
+    Block # == 0 when WRQ is acknowledged.
 ```
 
 ## Custom extension
