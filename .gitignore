@@ -38,3 +38,6 @@
 
 # Dolphin
 .directory
+
+# Test files
+*test*
