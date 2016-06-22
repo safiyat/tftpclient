@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>515</width>
+    <width>533</width>
     <height>374</height>
    </rect>
   </property>
@@ -37,12 +37,12 @@
               <string>TFTP Server:</string>
              </property>
              <property name="buddy">
-              <cstring>lineEdit</cstring>
+              <cstring>remoteServer</cstring>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QLineEdit" name="lineEdit">
+            <widget class="QLineEdit" name="remoteServer">
              <property name="minimumSize">
               <size>
                <width>150</width>
@@ -62,12 +62,12 @@
 directory:</string>
              </property>
              <property name="buddy">
-              <cstring>lineEdit_2</cstring>
+              <cstring>remoteFile</cstring>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QLineEdit" name="lineEdit_2">
+            <widget class="QLineEdit" name="remoteFile">
              <property name="minimumSize">
               <size>
                <width>150</width>
@@ -92,7 +92,7 @@ directory:</string>
          <item>
           <layout class="QHBoxLayout" name="horizontalLayout_3">
            <item>
-            <widget class="QLineEdit" name="lineEdit_3">
+            <widget class="QLineEdit" name="localFile">
              <property name="minimumSize">
               <size>
                <width>150</width>
@@ -102,7 +102,7 @@ directory:</string>
             </widget>
            </item>
            <item>
-            <widget class="QPushButton" name="pushButton">
+            <widget class="QPushButton" name="browseButton">
              <property name="text">
               <string>Browse</string>
              </property>
@@ -127,12 +127,12 @@ directory:</string>
               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
              </property>
              <property name="buddy">
-              <cstring>comboBox</cstring>
+              <cstring>command</cstring>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QComboBox" name="comboBox">
+            <widget class="QComboBox" name="command">
              <property name="maximumSize">
               <size>
                <width>70</width>
@@ -157,7 +157,7 @@ directory:</string>
             </widget>
            </item>
            <item>
-            <widget class="QPushButton" name="pushButton_2">
+            <widget class="QPushButton" name="executeButton">
              <property name="maximumSize">
               <size>
                <width>100</width>
@@ -190,12 +190,12 @@ directory:</string>
             <string>Log</string>
            </property>
            <property name="buddy">
-            <cstring>textBrowser</cstring>
+            <cstring>logBrowser</cstring>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QTextBrowser" name="textBrowser"/>
+          <widget class="QTextBrowser" name="logBrowser"/>
          </item>
         </layout>
        </item>
@@ -207,12 +207,12 @@ directory:</string>
             <string>Output</string>
            </property>
            <property name="buddy">
-            <cstring>textBrowser_2</cstring>
+            <cstring>outputBrowser</cstring>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QTextBrowser" name="textBrowser_2"/>
+          <widget class="QTextBrowser" name="outputBrowser"/>
          </item>
         </layout>
        </item>
