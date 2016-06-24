@@ -10,6 +10,7 @@
 
 #include <QUdpSocket>
 
+
 class tftpDatagram : public QUdpSocket
 {
     Q_OBJECT
@@ -19,12 +20,26 @@ class tftpDatagram : public QUdpSocket
     QHostAddress remoteAddr;
     quint16 remotePort;
 
-    quint32 blockNumber;
+    quint16 blockNumber;
     quint16 opcode;
 
     QByteArray filename;
     QByteArray mode;
     QByteArray body;
+    QByteArray datagram;
+
+    void addOpcodeToDatagram(quint16 o);
+    void addFilenameToDatagram(QByteArray f);
+    void addZeroToDatagram();
+    void addModeToDatagram(QByteArray m);
+    void addBlockNumberToDatagram(quint16 b);
+    void addDataToDatagram(QByteArray d);
+
+    quint16 readOpcodeFromDatagram();
+    QByteArray readFilenameFromDatagram();
+    QByteArray readModeFromDatagram();
+    quint16 readBlockNumberFromDatagram();
+    QByteArray readDataFromDatagram();
 
 public:
     explicit tftpDatagram(QObject *parent = 0);
@@ -41,8 +56,8 @@ public:
     quint16 getRemotePort() const;
     void setRemotePort(const quint16 &value);
 
-    quint32 getBlockNumber() const;
-    void setBlockNumber(const quint32 &value);
+    quint16 getBlockNumber() const;
+    void setBlockNumber(const quint16 &value);
 
     quint16 getOpcode() const;
     void setOpcode(const quint16 &value);
@@ -56,8 +71,21 @@ public:
     QByteArray getBody() const;
     void setBody(const QByteArray &value);
 
-    QString prettyPrint() const; // For logging and output
+    QByteArray getDatagram() const;
+    QString getDatagramString() const;
 
+    QString prettyPrint(); // For logging and output
+
+
+    bool rrqOperation(quint8 timeout);
+    bool wrqOperation(quint8 timeout);
+    bool errorOperation(quint8 timeout);
+    bool listOperation(quint8 timeout);
+
+    bool sendDataOperation(quint8 timeout);
+    bool receiveDataOperation(quint8 timeout);
+    bool sendAckOperation(quint8 timeout);
+    bool receiveAckOperation(quint8 timeout);
 signals:
 
 public slots:

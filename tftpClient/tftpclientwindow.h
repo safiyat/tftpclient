@@ -53,6 +53,11 @@ private:
     void getMethod();
     void putMethod();
     void listMethod();
+
+    quint16 bindUdpSocket(quint16 port);
+
+    void printDatagram();
+    void sleep(int s);
 };
 
 #endif // TFTPCLIENTWINDOW_H

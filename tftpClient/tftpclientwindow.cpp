@@ -8,7 +8,7 @@ tftpClientWindow::tftpClientWindow(QWidget *parent) :
     ui->setupUi(this);
     connect(ui->browseButton, SIGNAL(released()), this, SLOT(onBrowseFile()));
     connect(ui->executeButton, SIGNAL(released()), this, SLOT(onExecuteClick()));
-            //    ui->logBrowser->setText();
+    timeout = 10;
 }
 
 tftpClientWindow::~tftpClientWindow()
@@ -84,22 +84,14 @@ void tftpClientWindow::onExecuteClick()
     ui->remoteFile->setEnabled(false);
 
     if(ui->command->currentText() == "GET")
+    {
         ui->logBrowser->append("GET called");
+        getMethod();
+    }
     else if(ui->command->currentText() == "PUT")
         ui->logBrowser->append("PUT called");
     else if(ui->command->currentText() == "LIST")
         ui->logBrowser->append("LIST called");
-
-    for(int i = 0; i < 5; i++)
-    {
-        QString text = QString(i + 65);
-        ui->logBrowser->append(text);
-        ui->outputBrowser->setText(text);
-        int ms = 1000;
-        struct timespec ts = { ms / 1000, (ms % 1000) * 1000 * 1000 };
-        nanosleep(&ts, NULL);
-        ui->statusBar->showMessage(QString(i + 49));
-    }
 
     ui->executeButton->setEnabled(true);
     ui->browseButton->setEnabled(true);
@@ -113,7 +105,22 @@ void tftpClientWindow::onExecuteClick()
 
 void tftpClientWindow::getMethod()
 {
+    sourcePort = bindUdpSocket(0);
 
+    datagram.setFilename(ui->remoteFile->text().toLocal8Bit());
+    datagram.setMode(ui->mode->currentText().toLower().toLocal8Bit());
+    datagram.rrqOperation(timeout);
+    datagram.writeDatagram(datagram.getDatagram(), QHostAddress(ui->remoteServer->text()), 69);
+    printDatagram();
+
+    datagram.disconnectFromHost();
+    if (datagram.state() == QAbstractSocket::UnconnectedState ||
+        datagram.waitForDisconnected(1000))
+    {
+        QString log = QString("Closed the UDP socket.");
+        ui->statusBar->showMessage(log);
+        ui->logBrowser->append(log);
+    }
 }
 
 void tftpClientWindow::putMethod()
@@ -124,4 +131,43 @@ void tftpClientWindow::putMethod()
 void tftpClientWindow::listMethod()
 {
 
+}
+
+quint16 tftpClientWindow::bindUdpSocket(quint16 port)
+{
+    int i = 0;
+    while(datagram.state() == QAbstractSocket::UnconnectedState)
+    {
+        datagram.bind(port);
+        i++;
+        if(i > 5)
+        {
+            QString log = QString("Unable to listen to any unused ports on any interface.");
+            ui->statusBar->showMessage(log);
+            ui->logBrowser->append(log);
+            return 0;
+        }
+    }
+    QString log = QString("UDP Socket listening on interface %1 at port %2.").arg(datagram.localAddress().toString(),
+                                                                                  QString::number(datagram.localPort()));
+    ui->statusBar->showMessage(log);
+    ui->logBrowser->append(log);
+
+    return datagram.localPort();
+}
+
+void tftpClientWindow::printDatagram()
+{
+    QByteArray datagramP = datagram.getDatagram();
+    QString DataAsString = datagram.getDatagramString();
+    ui->logBrowser->append(QString("\n"));
+    ui->logBrowser->append(QString("Datagram: <code>%1</code>").arg(DataAsString));
+    ui->logBrowser->append(QString("Length: %1").arg(QString::number(datagramP.length())));
+}
+
+void tftpClientWindow::sleep(int s)
+{
+        int ms = s * 1000;
+        struct timespec ts = { ms / 1000, (ms % 1000) * 1000 * 1000 };
+        nanosleep(&ts, NULL);
 }
