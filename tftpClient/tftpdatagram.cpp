@@ -2,8 +2,6 @@
 
 void tftpDatagram::addOpcodeToDatagram(quint16 o)
 {
-//    addZeroToDatagram();
-//    datagram.append(o);
     QDataStream d(&datagram, QIODevice::WriteOnly);
     d << o;
 }
@@ -25,9 +23,7 @@ void tftpDatagram::addModeToDatagram(QByteArray m)
 
 void tftpDatagram::addBlockNumberToDatagram(quint16 b)
 {
-//    Needs fixing.
-//    datagram.append(b);
-    QDataStream d(&datagram, QIODevice::WriteOnly);
+    QDataStream d(&datagram, QIODevice::Append);
     d << b;
 }
 
@@ -66,13 +62,10 @@ QByteArray tftpDatagram::readModeFromDatagram()
 
 quint16 tftpDatagram::readBlockNumberFromDatagram()
 {
-    QList<QByteArray> list;
     quint16 b;
-    QByteArray temp;
-    list = datagram.split(char(0));
-    temp = list.first();
-    temp.remove(0, 2);
+    QByteArray temp(datagram);
     QDataStream d(temp);
+    d >> b;
     d >> b;
     return b;
 }
@@ -184,6 +177,11 @@ QByteArray tftpDatagram::getDatagram() const
     return datagram;
 }
 
+void tftpDatagram::setDatagram(const QByteArray &value)
+{
+    datagram = value;
+}
+
 QString tftpDatagram::getDatagramString() const
 {
     QString value;
@@ -211,77 +209,69 @@ QString tftpDatagram::prettyPrint()
     return output;
 }
 
-bool tftpDatagram::rrqOperation(quint8 timeout)
+bool tftpDatagram::rrqOperation()
 {
-//    QHostAddress sourceAddr;
-//    quint16 sourcePort;
-
-//    QHostAddress remoteAddr;
-//    quint16 remotePort;
-
-//    quint16 blockNumber;
-//    quint16 opcode;
-
-//    QByteArray filename;
-//    QByteArray mode;
-//    QByteArray body;
     opcode = OP_RRQ;
     datagram.clear();
-//    datagram.append(char(0));   //Padding for opcode
-//    quint16 o = 01;
-//    datagram.append(o);
-//    datagram.append(filename);
-//    datagram.append(char(0));
-//    datagram.append(mode);
-//    datagram.append(char(0));
-    addOpcodeToDatagram(OP_RRQ);
+
+    addOpcodeToDatagram(opcode);
     addFilenameToDatagram(filename);
     addZeroToDatagram();
     addModeToDatagram(mode);
     addZeroToDatagram();
 
-    timeout--;
+    this->writeDatagram(datagram, remoteAddr, remotePort);
+
     return true;
 }
 
-bool tftpDatagram::wrqOperation(quint8 timeout)
+bool tftpDatagram::wrqOperation()
 {
-    timeout--;
     return true;
 }
 
-bool tftpDatagram::errorOperation(quint8 timeout)
+bool tftpDatagram::errorOperation()
 {
-    timeout--;
     return true;
 }
 
-bool tftpDatagram::listOperation(quint8 timeout)
+bool tftpDatagram::listOperation()
 {
-    timeout--;
     return true;
 }
 
-bool tftpDatagram::sendDataOperation(quint8 timeout)
+bool tftpDatagram::sendDataOperation()
 {
-    timeout--;
     return true;
 }
 
-bool tftpDatagram::receiveDataOperation(quint8 timeout)
+bool tftpDatagram::receiveDataOperation()
 {
-    timeout--;
+    QByteArray data;
+    data.resize(this->pendingDatagramSize());
+    qint64 status = this->readDatagram(data.data(), data.size(), &remoteAddr, &remotePort);
+    datagram = data;
+    body = this->readDataFromDatagram();
+    blockNumber = this->readBlockNumberFromDatagram();
+    if(status != -1)
+        return true;
+    else
+        return false;
+}
+
+bool tftpDatagram::sendAckOperation()
+{
+    opcode = OP_ACK;
+    datagram.clear();
+
+    addOpcodeToDatagram(opcode);
+    addBlockNumberToDatagram(blockNumber);
+
+    this->writeDatagram(datagram, remoteAddr, remotePort);
     return true;
 }
 
-bool tftpDatagram::sendAckOperation(quint8 timeout)
+bool tftpDatagram::receiveAckOperation()
 {
-    timeout--;
-    return true;
-}
-
-bool tftpDatagram::receiveAckOperation(quint8 timeout)
-{
-    timeout--;
     return true;
 }

@@ -72,20 +72,22 @@ public:
     void setBody(const QByteArray &value);
 
     QByteArray getDatagram() const;
+    void setDatagram(const QByteArray &value);
+
     QString getDatagramString() const;
 
     QString prettyPrint(); // For logging and output
 
 
-    bool rrqOperation(quint8 timeout);
-    bool wrqOperation(quint8 timeout);
-    bool errorOperation(quint8 timeout);
-    bool listOperation(quint8 timeout);
+    bool rrqOperation();
+    bool wrqOperation();
+    bool errorOperation();
+    bool listOperation();
 
-    bool sendDataOperation(quint8 timeout);
-    bool receiveDataOperation(quint8 timeout);
-    bool sendAckOperation(quint8 timeout);
-    bool receiveAckOperation(quint8 timeout);
+    bool sendDataOperation();
+    bool receiveDataOperation();
+    bool sendAckOperation();
+    bool receiveAckOperation();
 signals:
 
 public slots:

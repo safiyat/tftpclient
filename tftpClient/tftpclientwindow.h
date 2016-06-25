@@ -50,13 +50,18 @@ private:
 
     tftpDatagram datagram;
 
+    QByteArray data;
+    QByteArray receivedData;
+
     void getMethod();
     void putMethod();
     void listMethod();
 
     quint16 bindUdpSocket(quint16 port);
+    void disconnectSocket();
 
-    void printDatagram();
+    QString printDatagram();
+    QString printDatagram(const QByteArray &datagramP);
     void sleep(int s);
 };
 

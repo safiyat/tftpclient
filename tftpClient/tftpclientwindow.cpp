@@ -8,7 +8,7 @@ tftpClientWindow::tftpClientWindow(QWidget *parent) :
     ui->setupUi(this);
     connect(ui->browseButton, SIGNAL(released()), this, SLOT(onBrowseFile()));
     connect(ui->executeButton, SIGNAL(released()), this, SLOT(onExecuteClick()));
-    timeout = 10;
+    timeout = 2;
 }
 
 tftpClientWindow::~tftpClientWindow()
@@ -109,18 +109,67 @@ void tftpClientWindow::getMethod()
 
     datagram.setFilename(ui->remoteFile->text().toLocal8Bit());
     datagram.setMode(ui->mode->currentText().toLower().toLocal8Bit());
-    datagram.rrqOperation(timeout);
-    datagram.writeDatagram(datagram.getDatagram(), QHostAddress(ui->remoteServer->text()), 69);
-    printDatagram();
+    datagram.setRemoteAddr(QHostAddress(ui->remoteServer->text()));
+    datagram.setRemotePort(69);
 
-    datagram.disconnectFromHost();
-    if (datagram.state() == QAbstractSocket::UnconnectedState ||
-        datagram.waitForDisconnected(1000))
+    if(!datagram.rrqOperation())
     {
-        QString log = QString("Closed the UDP socket.");
-        ui->statusBar->showMessage(log);
-        ui->logBrowser->append(log);
+        ui->logBrowser->append("Unable to send RRQ.");
+        this->disconnectSocket();
     }
+
+    // Wait for the first data packet
+    while(!datagram.waitForReadyRead(timeout))
+    {
+        ui->logBrowser->append("Response to RRQ timedout. Sending again...");
+        datagram.rrqOperation();
+    }
+
+    // Receive first data packet
+    while(!datagram.receiveDataOperation())
+    {
+        ui->logBrowser->append("Didn't receive. Waiting again...");
+    }
+
+    // Send first ACK
+    if(datagram.sendAckOperation())
+        ui->logBrowser->append(QString("Successfully sent ack for block: %1").arg(datagram.getBlockNumber()));
+    else
+        ui->logBrowser->append(QString("Failed to send ack for block: %1").arg(datagram.getBlockNumber()));
+    ui->logBrowser->append(QString("ACK: %1").arg(datagram.getDatagramString()));
+    ui->logBrowser->append(QString("LEN: %1").arg(datagram.getDatagram().length()));
+
+    QByteArray first = datagram.getBody();
+    QByteArray body;
+    // Make note of size of first DATA packet
+    int first_size = first.length();
+    receivedData.append(first);
+
+    // Keep receiving until available
+    while(datagram.waitForReadyRead(timeout))
+    {
+        // Receive DATA packet
+        while(!datagram.receiveDataOperation())
+        {
+            ui->logBrowser->append("Didn't receive. Waiting again...");
+        }
+        body = datagram.getBody();
+        receivedData.append(body);
+
+        // Send ACK
+        if(datagram.sendAckOperation())
+            ui->logBrowser->append(QString("Successfully sent ack for block: %1").arg(datagram.getBlockNumber()));
+        else
+            ui->logBrowser->append(QString("Failed to send ack for block: %1").arg(datagram.getBlockNumber()));
+        ui->logBrowser->append(QString("ACK: %1").arg(datagram.getDatagramString()));
+        if(body.length() < first_size)
+            break;
+    }
+
+    ui->outputBrowser->setText(printDatagram(receivedData));
+    ui->logBrowser->append(QString("Block number: %1").arg(datagram.getBlockNumber()));
+
+    this->disconnectSocket();
 }
 
 void tftpClientWindow::putMethod()
@@ -156,13 +205,50 @@ quint16 tftpClientWindow::bindUdpSocket(quint16 port)
     return datagram.localPort();
 }
 
-void tftpClientWindow::printDatagram()
+void tftpClientWindow::disconnectSocket()
+{
+    datagram.disconnectFromHost();
+    if (datagram.state() == QAbstractSocket::UnconnectedState ||
+        datagram.waitForDisconnected(1000))
+    {
+        QString log = QString("Closed the UDP socket.");
+        ui->statusBar->showMessage(log);
+        ui->logBrowser->append(log);
+    }
+}
+
+QString tftpClientWindow::printDatagram()
 {
     QByteArray datagramP = datagram.getDatagram();
     QString DataAsString = datagram.getDatagramString();
-    ui->logBrowser->append(QString("\n"));
-    ui->logBrowser->append(QString("Datagram: <code>%1</code>").arg(DataAsString));
-    ui->logBrowser->append(QString("Length: %1").arg(QString::number(datagramP.length())));
+    QString output = QString();
+    output.append(QString("\n"));
+    output.append(QString("Datagram: <code>%1</code>").arg(DataAsString));
+    output.append(QString("Length: %1").arg(QString::number(datagramP.length())));
+    return output;
+}
+
+QString tftpClientWindow::printDatagram(const QByteArray &datagramP)
+{
+    QString DataAsString;
+    for(int i = 0; i < datagramP.length(); i++)
+    {
+        char c = datagramP.at(i);
+        if(c < 10)
+        {
+            QString t = "<b>";
+            t.append(c + 48);
+            t.append("</b>");
+            DataAsString.append(t);
+        }
+        else
+            DataAsString.append(c);
+    }
+    QString output = QString();
+    output.append(QString("\n"));
+    output.append(QString("Datagram: <code>%1</code>").arg(DataAsString));
+    output.append(QString("Length: %1").arg(QString::number(datagramP.length())));
+    return output;
 }
 
 void tftpClientWindow::sleep(int s)
