@@ -51,34 +51,22 @@ QByteArray FileHandler::readBlock()
         else
             file.open(QIODevice::ReadOnly);
     }
-    qint64 pos = (blockNumber - 1) * blockSize;
-    if(pos < 0)
-        pos = 0;
-    file.seek(pos);
+    file.seek(position);
     QByteArray block = file.read(blockSize);
-    if(mode.toLower() == QString("netascii"))
+    position += block.length();
+    if((mode.toLower() == QString("netascii")) && (!block.contains("\r\n")))
+    {
         block.replace("\n", "\r\n");
-    return block;
-}
-
-QByteArray FileHandler::readBlock(quint16 blockN)
-{
-    QFile f;
-    f.setFileName(filename);
-    if(mode.toLower() == QString("netascii"))
-        f.open(QIODevice::ReadOnly | QIODevice::Text);
-    else
-        f.open(QIODevice::ReadOnly);
-
-    qint64 pos = (blockN - 1) * blockSize;
-    if(pos < 0)
-        pos = 0;
-    f.seek(pos);
-    QByteArray block = f.read(blockSize);
-    f.close();
-    if(mode.toLower() == QString("netascii"))
-        block.replace("\n", "\r\n");
-
+        if((block.length() + block.count("\n")) > blockSize)
+        {
+            int count = block.count("\n");
+            position -= count;
+            QByteArray temp = block.right(count);
+            position += temp.count("\r");
+        }
+        block = block.left(blockSize);
+    }
+    file.seek(position);
     return block;
 }
 
@@ -96,6 +84,13 @@ void FileHandler::writeBlock(QByteArray block)
     file.write(block);
 }
 
+bool FileHandler::eofReached()
+{
+    if(file.atEnd())
+        return true;
+    return false;
+}
+
 void FileHandler::closeFile()
 {
     file.close();
@@ -103,4 +98,5 @@ void FileHandler::closeFile()
 
 FileHandler::FileHandler()
 {
+    position = 0;
 }

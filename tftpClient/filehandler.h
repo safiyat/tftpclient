@@ -12,6 +12,7 @@ class FileHandler
 {
     QString filename;
     QFile file;
+    quint64 position;
     quint16 blockNumber;
     quint16 blockSize;
     QString mode;
@@ -29,9 +30,9 @@ public:
     void setMode(const QString &value);
 
     QByteArray readBlock();
-    QByteArray readBlock(quint16 blockN);
 
     void writeBlock(QByteArray block);
+    bool eofReached();
     void closeFile();
 };
 

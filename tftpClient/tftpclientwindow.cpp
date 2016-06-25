@@ -10,9 +10,8 @@ tftpClientWindow::tftpClientWindow(QWidget *parent) :
     connect(ui->executeButton, SIGNAL(released()), this, SLOT(onExecuteClick()));
     timeout = 2;
     ui->remoteServer->setText("0.0.0.0");
-    ui->remoteFile->setText("README.md");
-    ui->localFile->setText("/home/safiyat/Hogwarts/GitHub/tfpClient/README.md");
-    ui->command->setCurrentIndex(1);
+    ui->remoteFile->setText("");
+    ui->localFile->setText("");
 }
 
 tftpClientWindow::~tftpClientWindow()
@@ -89,12 +88,10 @@ void tftpClientWindow::onExecuteClick()
 
     if(ui->command->currentText() == "GET")
     {
-        ui->logBrowser->append("GET called");
         getMethod();
     }
     else if(ui->command->currentText() == "PUT")
     {
-        ui->logBrowser->append("PUT called");
         putMethod();
     }
     else if(ui->command->currentText() == "LIST")
@@ -183,7 +180,7 @@ void tftpClientWindow::getMethod()
         destFile = QString(ui->remoteFile->text());
 
     f.setFilename(destFile);
-    f.setMode("netascii");
+    f.setMode(ui->mode->currentText());
     f.writeBlock(receivedData);
 
     f.closeFile();
@@ -198,6 +195,7 @@ void tftpClientWindow::putMethod()
 {
     sourcePort = bindUdpSocket(0);
 
+    datagram.clearDatagram();
     datagram.setFilename(ui->remoteFile->text().toLocal8Bit());
     datagram.setMode(ui->mode->currentText().toLower().toLocal8Bit());
     datagram.setRemoteAddr(QHostAddress(ui->remoteServer->text()));
@@ -240,26 +238,81 @@ void tftpClientWindow::putMethod()
     }
     ui->logBrowser->append("Received first ACK");
 
-    // Keep sending until available
-    while(datagram.waitForBytesWritten(timeout))
-    {
-        // Send DATA packet
-        while(!datagram.sendDataOperation())
-        {
-            ui->logBrowser->append("Didn't receive. Waiting again...");
-        }
+    blockNumber = 1;
+    FileHandler f;
+    f.setFilename(ui->localFile->text());
+    f.setMode((ui->mode->currentText()));
+    f.setBlockSize(512);
+    f.setBlockNumber(blockNumber);
 
-        // Receive ACK
-        if(datagram.sendAckOperation())
-            ui->logBrowser->append(QString("Successfully sent ack for block: %1").arg(datagram.getBlockNumber()));
-        else
-            ui->logBrowser->append(QString("Failed to send ack for block: %1").arg(datagram.getBlockNumber()));
-        ui->logBrowser->append(QString("ACK: %1").arg(datagram.getDatagramString()));
-//        if(body.length() < first_size)
-//            break;
+    // Keep sending until available
+    QByteArray b;
+    do
+    {
+       b = f.readBlock();
+
+       datagram.clearDatagram();
+       datagram.setOpcode(OP_DATA);
+       datagram.setBlockNumber(blockNumber);
+       datagram.setBody(b);
+
+       while(!datagram.sendDataOperation())
+       {
+           ui->logBrowser->append(QString("Failed to send data for block number %1. Trying again...").arg(blockNumber));
+       }
+       ui->logBrowser->append(QString("Sent data for block number %1.").arg(blockNumber));
+       ui->logBrowser->insertHtml(QString("<br>%1").arg(printDatagram(datagram.getDatagram())));
+
+       while(datagram.getOpcode() != OP_ACK)
+       {
+           while(!datagram.receiveAckOperation())
+           {
+               ui->logBrowser->append("Didn't receive. Waiting again...");
+           }
+           if(datagram.getOpcode() == OP_ERROR)
+           {
+               ui->logBrowser->append(QString("An ERROR instead of ACK."));
+
+               datagram.clearDatagram();
+               f.closeFile();
+
+               this->disconnectSocket();
+               return;
+           }
+           else if(datagram.getOpcode() != OP_ACK)
+           {
+               ui->logBrowser->append(QString("Recieved %1 instead of ACK.").arg(opcodeToString(datagram.getOpcode())));
+           }
+           else
+           {
+               ui->logBrowser->append(QString("Recieved %1.").arg(opcodeToString(datagram.getOpcode())));
+               if(datagram.getBlockNumber() == blockNumber) // ACK for the block received
+               {
+                   blockNumber++;
+                   f.setBlockNumber(blockNumber);
+                   break;
+               }
+               else     // ACK received, but nor for current DATA
+               {
+                   ui->logBrowser->append(QString("Didn't receive ACK for block number %1. Trying again...").arg(blockNumber));
+                   while(!datagram.sendDataOperation())
+                   {
+                       ui->logBrowser->append(QString("Failed to send data for block number %1. Trying again...").arg(blockNumber));
+                   }
+               }
+           }
+       }
+    } while (!f.eofReached());
+    if(b.length() == 512) // File size was a multiple of block size
+    {
+        ui->logBrowser->append(QString("Sent complete file. The size was a multiple of block size. Sending a zero packet."));
+        datagram.clearDatagram();
+        datagram.setOpcode(OP_DATA);
+        datagram.setBlockNumber(blockNumber);
+
+        datagram.sendDataOperation();
     }
 
-//    ui->outputBrowser->setText(printDatagram(receivedData));
     ui->logBrowser->append(QString("Block number: %1").arg(datagram.getBlockNumber()));
 
     this->disconnectSocket();
@@ -307,13 +360,7 @@ void tftpClientWindow::disconnectSocket()
 
 QString tftpClientWindow::printDatagram()
 {
-    QByteArray datagramP = datagram.getDatagram();
-    QString DataAsString = datagram.getDatagramString();
-    QString output = QString();
-    output.append(QString("\n"));
-    output.append(QString("Datagram: <code>%1</code>").arg(DataAsString));
-    output.append(QString("Length: %1").arg(QString::number(datagramP.length())));
-    return output;
+    return printDatagram(datagram.getDatagram());
 }
 
 QString tftpClientWindow::printDatagram(const QByteArray &datagramP)
@@ -334,8 +381,8 @@ QString tftpClientWindow::printDatagram(const QByteArray &datagramP)
     }
     QString output = QString();
     output.append(QString("\n"));
-    output.append(QString("Datagram: <code>%1</code>").arg(DataAsString));
-    output.append(QString("Length: %1").arg(QString::number(datagramP.length())));
+    output.append(QString("Datagram: <br>%1").arg(DataAsString));
+    output.append(QString("<br>Length: <b>%1</b><br>").arg(QString::number(datagramP.length())));
     return output;
 }
 

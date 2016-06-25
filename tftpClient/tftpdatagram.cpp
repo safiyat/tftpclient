@@ -258,6 +258,13 @@ bool tftpDatagram::listOperation()
 
 bool tftpDatagram::sendDataOperation()
 {
+    opcode = OP_DATA;
+    datagram.clear();
+
+    addOpcodeToDatagram(opcode);
+    addBlockNumberToDatagram(blockNumber);
+    addDataToDatagram(body);
+    this->writeDatagram(datagram, remoteAddr, remotePort);
     return true;
 }
 
