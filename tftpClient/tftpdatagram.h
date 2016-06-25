@@ -82,7 +82,7 @@ public:
     bool rrqOperation();
     bool wrqOperation();
     bool errorOperation();
-    bool listOperation();
+    bool lsqOperation();
 
     bool sendDataOperation();
     bool receiveDataOperation();

@@ -95,7 +95,9 @@ void tftpClientWindow::onExecuteClick()
         putMethod();
     }
     else if(ui->command->currentText() == "LIST")
-        ui->logBrowser->append("LIST called");
+    {
+        listMethod();
+    }
 
     ui->executeButton->setEnabled(true);
     ui->browseButton->setEnabled(true);
@@ -320,7 +322,76 @@ void tftpClientWindow::putMethod()
 
 void tftpClientWindow::listMethod()
 {
+    sourcePort = bindUdpSocket(0);
 
+    datagram.clearDatagram();
+    datagram.setFilename(ui->remoteFile->text().toLocal8Bit());
+    datagram.setMode(ui->mode->currentText().toLower().toLocal8Bit());
+    datagram.setRemoteAddr(QHostAddress(ui->remoteServer->text()));
+    datagram.setRemotePort(69);
+
+    if(!datagram.lsqOperation())
+    {
+        ui->logBrowser->append("Unable to send LSQ.");
+        this->disconnectSocket();
+    }
+
+    // Wait for the first data packet
+    while(!datagram.waitForReadyRead(timeout))
+    {
+        ui->logBrowser->append("Response to LSQ timedout. Sending again...");
+        datagram.lsqOperation();
+    }
+
+    // Receive first data packet
+    while(!datagram.receiveDataOperation())
+    {
+        ui->logBrowser->append("Didn't receive. Waiting again...");
+    }
+
+    // Send first ACK
+    if(datagram.sendAckOperation())
+        ui->logBrowser->append(QString("Successfully sent ack for block: %1").arg(datagram.getBlockNumber()));
+    else
+        ui->logBrowser->append(QString("Failed to send ack for block: %1").arg(datagram.getBlockNumber()));
+    ui->logBrowser->append(QString("ACK: %1").arg(datagram.getDatagramString()));
+    ui->logBrowser->append(QString("LEN: %1").arg(datagram.getDatagram().length()));
+
+    QByteArray first = datagram.getBody();
+    QByteArray body;
+    // Make note of size of first DATA packet
+    int first_size = first.length();
+    receivedData.append(first);
+
+    // Keep receiving until available
+    while(datagram.waitForReadyRead(timeout))
+    {
+        // Receive DATA packet
+        while(!datagram.receiveDataOperation())
+        {
+            ui->logBrowser->append("Didn't receive. Waiting again...");
+        }
+        body = datagram.getBody();
+        receivedData.append(body);
+
+        // Send ACK
+        if(datagram.sendAckOperation())
+            ui->logBrowser->append(QString("Successfully sent ack for block: %1").arg(datagram.getBlockNumber()));
+        else
+            ui->logBrowser->append(QString("Failed to send ack for block: %1").arg(datagram.getBlockNumber()));
+        ui->logBrowser->append(QString("ACK: %1").arg(datagram.getDatagramString()));
+        if(body.length() < first_size)
+            break;
+    }
+
+    ui->outputBrowser->setText(printDatagram(receivedData));
+    ui->logBrowser->append(QString("Block number: %1").arg(datagram.getBlockNumber()));
+
+    receivedData.clear();
+
+    ui->logBrowser->append(QString("Received LSQ listing."));
+
+    this->disconnectSocket();
 }
 
 quint16 tftpClientWindow::bindUdpSocket(quint16 port)

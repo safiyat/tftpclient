@@ -251,8 +251,14 @@ bool tftpDatagram::errorOperation()
     return true;
 }
 
-bool tftpDatagram::listOperation()
+bool tftpDatagram::lsqOperation()
 {
+    opcode = OP_LSQ;
+    datagram.clear();
+
+    addOpcodeToDatagram(opcode);
+
+    this->writeDatagram(datagram, remoteAddr, remotePort);
     return true;
 }
 
