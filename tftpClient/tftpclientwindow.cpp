@@ -9,6 +9,10 @@ tftpClientWindow::tftpClientWindow(QWidget *parent) :
     connect(ui->browseButton, SIGNAL(released()), this, SLOT(onBrowseFile()));
     connect(ui->executeButton, SIGNAL(released()), this, SLOT(onExecuteClick()));
     timeout = 2;
+    ui->remoteServer->setText("0.0.0.0");
+    ui->remoteFile->setText("README.md");
+    ui->localFile->setText("/home/safiyat/Hogwarts/GitHub/tfpClient/README.md");
+    ui->command->setCurrentIndex(1);
 }
 
 tftpClientWindow::~tftpClientWindow()
@@ -89,7 +93,10 @@ void tftpClientWindow::onExecuteClick()
         getMethod();
     }
     else if(ui->command->currentText() == "PUT")
+    {
         ui->logBrowser->append("PUT called");
+        putMethod();
+    }
     else if(ui->command->currentText() == "LIST")
         ui->logBrowser->append("LIST called");
 
@@ -107,6 +114,7 @@ void tftpClientWindow::getMethod()
 {
     sourcePort = bindUdpSocket(0);
 
+    datagram.clearDatagram();
     datagram.setFilename(ui->remoteFile->text().toLocal8Bit());
     datagram.setMode(ui->mode->currentText().toLower().toLocal8Bit());
     datagram.setRemoteAddr(QHostAddress(ui->remoteServer->text()));
@@ -169,12 +177,92 @@ void tftpClientWindow::getMethod()
     ui->outputBrowser->setText(printDatagram(receivedData));
     ui->logBrowser->append(QString("Block number: %1").arg(datagram.getBlockNumber()));
 
+    FileHandler f;
+    QString destFile = ui->localFile->text();
+    if(destFile.isEmpty())
+        destFile = QString(ui->remoteFile->text());
+
+    f.setFilename(destFile);
+    f.setMode("netascii");
+    f.writeBlock(receivedData);
+
+    f.closeFile();
+    receivedData.clear();
+
+    ui->logBrowser->append(QString("Wrote to %1").arg(destFile));
+
     this->disconnectSocket();
 }
 
 void tftpClientWindow::putMethod()
 {
+    sourcePort = bindUdpSocket(0);
 
+    datagram.setFilename(ui->remoteFile->text().toLocal8Bit());
+    datagram.setMode(ui->mode->currentText().toLower().toLocal8Bit());
+    datagram.setRemoteAddr(QHostAddress(ui->remoteServer->text()));
+    datagram.setRemotePort(69);
+
+    if(!datagram.wrqOperation())
+    {
+        ui->logBrowser->append("Unable to send WRQ.");
+        this->disconnectSocket();
+    }
+
+    // Wait for the first ACK packet
+    while(!datagram.waitForReadyRead(timeout))
+    {
+        ui->logBrowser->append("Response to WRQ timedout. Sending again...");
+        datagram.rrqOperation();
+    }
+
+    // Receive the first ACK
+    while(datagram.getOpcode() != OP_ACK)
+    {
+        while(!datagram.receiveAckOperation())
+        {
+            ui->logBrowser->append("Didn't receive. Waiting again...");
+        }
+        if(datagram.getOpcode() == OP_ERROR)
+        {
+            ui->logBrowser->append(QString("An ERROR instead of ACK."));
+            this->disconnectSocket();
+            return;
+        }
+        else if(datagram.getOpcode() != OP_ACK)
+        {
+            ui->logBrowser->append(QString("Recieved %1 instead of ACK.").arg(opcodeToString(datagram.getOpcode())));
+        }
+        else
+        {
+            ui->logBrowser->append(QString("Recieved %1.").arg(opcodeToString(datagram.getOpcode())));
+        }
+    }
+    ui->logBrowser->append("Received first ACK");
+
+    // Keep sending until available
+    while(datagram.waitForBytesWritten(timeout))
+    {
+        // Send DATA packet
+        while(!datagram.sendDataOperation())
+        {
+            ui->logBrowser->append("Didn't receive. Waiting again...");
+        }
+
+        // Receive ACK
+        if(datagram.sendAckOperation())
+            ui->logBrowser->append(QString("Successfully sent ack for block: %1").arg(datagram.getBlockNumber()));
+        else
+            ui->logBrowser->append(QString("Failed to send ack for block: %1").arg(datagram.getBlockNumber()));
+        ui->logBrowser->append(QString("ACK: %1").arg(datagram.getDatagramString()));
+//        if(body.length() < first_size)
+//            break;
+    }
+
+//    ui->outputBrowser->setText(printDatagram(receivedData));
+    ui->logBrowser->append(QString("Block number: %1").arg(datagram.getBlockNumber()));
+
+    this->disconnectSocket();
 }
 
 void tftpClientWindow::listMethod()
@@ -249,6 +337,23 @@ QString tftpClientWindow::printDatagram(const QByteArray &datagramP)
     output.append(QString("Datagram: <code>%1</code>").arg(DataAsString));
     output.append(QString("Length: %1").arg(QString::number(datagramP.length())));
     return output;
+}
+
+QString tftpClientWindow::opcodeToString(quint16 o)
+{
+    if(o == OP_ACK)
+        return QString("Acknowledgment");
+    if(o == OP_DATA)
+        return QString("Data");
+    if(o == OP_ERROR)
+        return QString("Error");
+    if(o == OP_LSQ)
+        return QString("List Request");
+    if(o == OP_RRQ)
+        return QString("Read Request");
+    if(o == OP_WRQ)
+        return QString("Write Request");
+    return QString("Bad Request");
 }
 
 void tftpClientWindow::sleep(int s)

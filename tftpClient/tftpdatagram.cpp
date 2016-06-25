@@ -209,6 +209,11 @@ QString tftpDatagram::prettyPrint()
     return output;
 }
 
+void tftpDatagram::clearDatagram()
+{
+    datagram.clear();
+}
+
 bool tftpDatagram::rrqOperation()
 {
     opcode = OP_RRQ;
@@ -227,6 +232,17 @@ bool tftpDatagram::rrqOperation()
 
 bool tftpDatagram::wrqOperation()
 {
+    opcode = OP_WRQ;
+    datagram.clear();
+
+    addOpcodeToDatagram(opcode);
+    addFilenameToDatagram(filename);
+    addZeroToDatagram();
+    addModeToDatagram(mode);
+    addZeroToDatagram();
+
+    this->writeDatagram(datagram, remoteAddr, remotePort);
+
     return true;
 }
 
@@ -273,5 +289,14 @@ bool tftpDatagram::sendAckOperation()
 
 bool tftpDatagram::receiveAckOperation()
 {
-    return true;
+    QByteArray data;
+    data.resize(this->pendingDatagramSize());
+    qint64 status = this->readDatagram(data.data(), data.size(), &remoteAddr, &remotePort);
+    datagram = data;
+    opcode = this->readOpcodeFromDatagram();
+    blockNumber = this->readBlockNumberFromDatagram();
+    if(status != -1)
+        return true;
+    else
+        return false;
 }

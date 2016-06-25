@@ -14,9 +14,11 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
         tftpclientwindow.cpp \
-    tftpdatagram.cpp
+    tftpdatagram.cpp \
+    filehandler.cpp
 
 HEADERS  += tftpclientwindow.h \
-    tftpdatagram.h
+    tftpdatagram.h \
+    filehandler.h
 
 FORMS    += tftpclientwindow.ui

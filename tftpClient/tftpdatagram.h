@@ -77,7 +77,7 @@ public:
     QString getDatagramString() const;
 
     QString prettyPrint(); // For logging and output
-
+    void clearDatagram();
 
     bool rrqOperation();
     bool wrqOperation();

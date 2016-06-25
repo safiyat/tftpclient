@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <QFileDialog>
 #include "tftpdatagram.h"
+#include "filehandler.h"
 
 namespace Ui {
 class tftpClientWindow;
@@ -62,6 +63,7 @@ private:
 
     QString printDatagram();
     QString printDatagram(const QByteArray &datagramP);
+    QString opcodeToString(quint16 o);
     void sleep(int s);
 };
 
