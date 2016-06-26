@@ -62,7 +62,6 @@ private:
     void disconnectSocket();
 
     QString printDatagram();
-    QString printDatagram(const QByteArray &datagramP);
     QString opcodeToString(quint16 o);
     void sleep(int s);
 };

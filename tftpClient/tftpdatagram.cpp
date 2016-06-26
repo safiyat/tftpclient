@@ -1,5 +1,18 @@
 #include "tftpdatagram.h"
 
+
+quint16 tftpDatagram::getErrorNumber()
+{
+    errorNumber = this->readBlockNumberFromDatagram();
+    return errorNumber;
+}
+
+QByteArray tftpDatagram::getErrorMessage()
+{
+    errorMessage = this->readDataFromDatagram();
+    return errorMessage;
+}
+
 void tftpDatagram::addOpcodeToDatagram(quint16 o)
 {
     QDataStream d(&datagram, QIODevice::WriteOnly);

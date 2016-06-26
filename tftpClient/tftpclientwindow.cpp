@@ -86,6 +86,9 @@ void tftpClientWindow::onExecuteClick()
     ui->remoteServer->setEnabled(false);
     ui->remoteFile->setEnabled(false);
 
+    ui->outputBrowser->clear();
+    ui->logBrowser->clear();
+
     if(ui->command->currentText() == "GET")
     {
         getMethod();
@@ -124,6 +127,7 @@ void tftpClientWindow::getMethod()
         ui->logBrowser->append("Unable to send RRQ.");
         this->disconnectSocket();
     }
+    ui->logBrowser->insertHtml(printDatagram());
 
     // Wait for the first data packet
     while(!datagram.waitForReadyRead(timeout))
@@ -140,11 +144,10 @@ void tftpClientWindow::getMethod()
 
     // Send first ACK
     if(datagram.sendAckOperation())
-        ui->logBrowser->append(QString("Successfully sent ack for block: %1").arg(datagram.getBlockNumber()));
+        ui->logBrowser->append(QString("Successfully sent ack."));
     else
         ui->logBrowser->append(QString("Failed to send ack for block: %1").arg(datagram.getBlockNumber()));
-    ui->logBrowser->append(QString("ACK: %1").arg(datagram.getDatagramString()));
-    ui->logBrowser->append(QString("LEN: %1").arg(datagram.getDatagram().length()));
+    ui->logBrowser->insertHtml(printDatagram());
 
     QByteArray first = datagram.getBody();
     QByteArray body;
@@ -168,13 +171,12 @@ void tftpClientWindow::getMethod()
             ui->logBrowser->append(QString("Successfully sent ack for block: %1").arg(datagram.getBlockNumber()));
         else
             ui->logBrowser->append(QString("Failed to send ack for block: %1").arg(datagram.getBlockNumber()));
-        ui->logBrowser->append(QString("ACK: %1").arg(datagram.getDatagramString()));
+        ui->logBrowser->insertHtml(printDatagram());
         if(body.length() < first_size)
             break;
     }
 
-    ui->outputBrowser->setText(printDatagram(receivedData));
-    ui->logBrowser->append(QString("Block number: %1").arg(datagram.getBlockNumber()));
+    ui->outputBrowser->setText(receivedData);
 
     FileHandler f;
     QString destFile = ui->localFile->text();
@@ -208,7 +210,7 @@ void tftpClientWindow::putMethod()
         ui->logBrowser->append("Unable to send WRQ.");
         this->disconnectSocket();
     }
-
+    ui->logBrowser->insertHtml(printDatagram());
     // Wait for the first ACK packet
     while(!datagram.waitForReadyRead(timeout))
     {
@@ -238,7 +240,8 @@ void tftpClientWindow::putMethod()
             ui->logBrowser->append(QString("Recieved %1.").arg(opcodeToString(datagram.getOpcode())));
         }
     }
-    ui->logBrowser->append("Received first ACK");
+
+    ui->logBrowser->insertHtml(printDatagram());
 
     blockNumber = 1;
     FileHandler f;
@@ -262,8 +265,8 @@ void tftpClientWindow::putMethod()
        {
            ui->logBrowser->append(QString("Failed to send data for block number %1. Trying again...").arg(blockNumber));
        }
-       ui->logBrowser->append(QString("Sent data for block number %1.").arg(blockNumber));
-       ui->logBrowser->insertHtml(QString("<br>%1").arg(printDatagram(datagram.getDatagram())));
+
+       ui->logBrowser->insertHtml(QString("<br>%1").arg(printDatagram()));
 
        while(datagram.getOpcode() != OP_ACK)
        {
@@ -287,16 +290,18 @@ void tftpClientWindow::putMethod()
            }
            else
            {
-               ui->logBrowser->append(QString("Recieved %1.").arg(opcodeToString(datagram.getOpcode())));
+//               ui->logBrowser->append(QString("Recieved %1.").arg(opcodeToString(datagram.getOpcode())));
                if(datagram.getBlockNumber() == blockNumber) // ACK for the block received
                {
                    blockNumber++;
                    f.setBlockNumber(blockNumber);
+                   ui->logBrowser->insertHtml(printDatagram());
                    break;
                }
                else     // ACK received, but nor for current DATA
                {
-                   ui->logBrowser->append(QString("Didn't receive ACK for block number %1. Trying again...").arg(blockNumber));
+                   ui->logBrowser->insertHtml(printDatagram());
+//                   ui->logBrowser->append(QString("Didn't receive ACK for block number %1. Trying again...").arg(blockNumber));
                    while(!datagram.sendDataOperation())
                    {
                        ui->logBrowser->append(QString("Failed to send data for block number %1. Trying again...").arg(blockNumber));
@@ -314,8 +319,6 @@ void tftpClientWindow::putMethod()
 
         datagram.sendDataOperation();
     }
-
-    ui->logBrowser->append(QString("Block number: %1").arg(datagram.getBlockNumber()));
 
     this->disconnectSocket();
 }
@@ -384,7 +387,7 @@ void tftpClientWindow::listMethod()
             break;
     }
 
-    ui->outputBrowser->setText(printDatagram(receivedData));
+    ui->outputBrowser->setText(receivedData);
     ui->logBrowser->append(QString("Block number: %1").arg(datagram.getBlockNumber()));
 
     receivedData.clear();
@@ -431,30 +434,70 @@ void tftpClientWindow::disconnectSocket()
 
 QString tftpClientWindow::printDatagram()
 {
-    return printDatagram(datagram.getDatagram());
-}
-
-QString tftpClientWindow::printDatagram(const QByteArray &datagramP)
-{
-    QString DataAsString;
-    for(int i = 0; i < datagramP.length(); i++)
+    QString DataAsString = "<br>";
+    quint16 o = datagram.getOpcode();
+    quint16 blocknumber;
+    quint16 errornumber;
+    QString operation;
+    QString data;
+    QString errormessage;
+    QString filename;
+    QString mode;
+    switch(o)
     {
-        char c = datagramP.at(i);
-        if(c < 10)
-        {
-            QString t = "<b>";
-            t.append(c + 48);
-            t.append("</b>");
-            DataAsString.append(t);
-        }
-        else
-            DataAsString.append(c);
+        case OP_ACK:
+            operation = opcodeToString(OP_ACK);
+            blocknumber = datagram.getBlockNumber();
+            DataAsString.append(QString("<font color=\"DeepPink\">Opcode: </font> <b>04</b> (%1)<br>").arg(operation));
+            DataAsString.append(QString("<font color=\"Lime\">Block Number: </font> <b>%1</b><br>").arg(blocknumber));
+            DataAsString.append(QString("<font color=\"\">Datagram Length: </font> <b>%1</b><br>").arg(datagram.getDatagram().length()));
+            break;
+        case OP_DATA:
+            operation = opcodeToString(OP_DATA);
+            blocknumber = datagram.getBlockNumber();
+            data = datagram.getBody().left(10);
+            data.append("</b>...<b>");
+            data.append(datagram.getBody().right(10));
+            DataAsString.append(QString("<font color=\"DeepPink\">Opcode: </font> <b>03</b> (%1)<br>").arg(operation));
+            DataAsString.append(QString("<font color=\"Lime\">Block Number: </font> <b>%1</b><br>").arg(blocknumber));
+            DataAsString.append(QString("<font color=\"Blue\">Data: </font> <b>%1</b><br>").arg(data));
+            DataAsString.append(QString("<font color=\"\">Datagram Length: </font> <b>%1</b><br>").arg(datagram.getDatagram().length()));
+            break;
+        case OP_ERROR:
+            operation = opcodeToString(OP_ERROR);
+            errornumber = datagram.getErrorNumber();
+            errormessage = datagram.getErrorMessage();
+            DataAsString.append(QString("<font color=\"DeepPink\">Opcode: </font> <b>05</b> (%1)<br>").arg(operation));
+            DataAsString.append(QString("<font color=\"Lime\">Error Number: </font> <b>%1</b><br>").arg(errornumber));
+            DataAsString.append(QString("<font color=\"Blue\">Error Message: </font> <b>%1</b><br>").arg(errormessage));
+            DataAsString.append(QString("<font color=\"\">Datagram Length: </font> <b>%1</b><br>").arg(datagram.getDatagram().length()));
+            break;
+        case OP_LSQ:
+            operation = opcodeToString(OP_LSQ);
+            DataAsString.append(QString("<font color=\"DeepPink\">Opcode: </font> <b>06</b> (%1)<br>").arg(operation));
+            DataAsString.append(QString("<font color=\"\">Datagram Length: </font> <b>%1</b><br>").arg(datagram.getDatagram().length()));
+            break;
+        case OP_RRQ:
+            operation = opcodeToString(OP_RRQ);
+            filename = datagram.getFilename();
+            mode = datagram.getMode();
+            DataAsString.append(QString("<br><font color=\"DeepPink\">Opcode: </font> <b>01</b> (%1)<br>").arg(operation));
+            DataAsString.append(QString("<font color=\"Lime\">File Name: </font> <b>%1</b><br>").arg(filename));
+            DataAsString.append(QString("<font color=\"Blue\">Mode: </font> <b>%1</b><br>").arg(mode));
+            DataAsString.append(QString("<font color=\"\">Datagram Length: </font> <b>%1</b><br>").arg(datagram.getDatagram().length()));
+            break;
+        case OP_WRQ:
+            operation = opcodeToString(OP_WRQ);
+            filename = datagram.getFilename();
+            mode = datagram.getMode();
+            DataAsString.append(QString("<br><font color=\"DeepPink\">Opcode: </font> <b>02</b> (%1)<br>").arg(operation));
+            DataAsString.append(QString("<font color=\"Lime\">File Name: </font> <b>%1</b><br>").arg(filename));
+            DataAsString.append(QString("<font color=\"Blue\">Mode: </font> <b>%1</b><br>").arg(mode));
+            DataAsString.append(QString("<font color=\"\">Datagram Length: </font> <b>%1</b><br>").arg(datagram.getDatagram().length()));
+            break;
     }
-    QString output = QString();
-    output.append(QString("\n"));
-    output.append(QString("Datagram: <br>%1").arg(DataAsString));
-    output.append(QString("<br>Length: <b>%1</b><br>").arg(QString::number(datagramP.length())));
-    return output;
+
+    return DataAsString;
 }
 
 QString tftpClientWindow::opcodeToString(quint16 o)

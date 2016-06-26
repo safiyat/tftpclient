@@ -22,11 +22,13 @@ class tftpDatagram : public QUdpSocket
 
     quint16 blockNumber;
     quint16 opcode;
+    quint16 errorNumber;
 
     QByteArray filename;
     QByteArray mode;
     QByteArray body;
     QByteArray datagram;
+    QByteArray errorMessage;
 
     void addOpcodeToDatagram(quint16 o);
     void addFilenameToDatagram(QByteArray f);
@@ -76,6 +78,9 @@ public:
 
     QString getDatagramString() const;
 
+    quint16 getErrorNumber();
+    QByteArray getErrorMessage();
+
     QString prettyPrint(); // For logging and output
     void clearDatagram();
 
@@ -88,6 +93,7 @@ public:
     bool receiveDataOperation();
     bool sendAckOperation();
     bool receiveAckOperation();
+
 signals:
 
 public slots:
