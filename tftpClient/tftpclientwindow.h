@@ -63,7 +63,6 @@ private:
 
     QString printDatagram();
     QString opcodeToString(quint16 o);
-    void sleep(int s);
 };
 
 #endif // TFTPCLIENTWINDOW_H

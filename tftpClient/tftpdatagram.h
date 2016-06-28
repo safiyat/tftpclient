@@ -9,6 +9,7 @@
 #define OP_LSQ   6
 
 #include <QUdpSocket>
+#include <QDataStream>
 
 
 class tftpDatagram : public QUdpSocket

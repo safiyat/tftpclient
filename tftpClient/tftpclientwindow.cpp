@@ -517,9 +517,3 @@ QString tftpClientWindow::opcodeToString(quint16 o)
     return QString("Bad Request");
 }
 
-void tftpClientWindow::sleep(int s)
-{
-        int ms = s * 1000;
-        struct timespec ts = { ms / 1000, (ms % 1000) * 1000 * 1000 };
-        nanosleep(&ts, NULL);
-}
